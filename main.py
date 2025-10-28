@@ -4,7 +4,7 @@ import base64
 from flask import Flask, request, jsonify
 from telegram import Bot, Update
 from telegram.ext import Dispatcher, MessageHandler, Filters, CommandHandler
-import openai
+import google.generativeai as genai
 from io import BytesIO
 from PIL import Image
 import logging
@@ -14,11 +14,11 @@ app = Flask(__name__)
 
 # Configuration
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
-OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
 
 # Initialize clients
 bot = Bot(token=TELEGRAM_TOKEN)
-openai.api_key = OPENAI_API_KEY
+genai.configure(api_key=GEMINI_API_KEY)
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -82,7 +82,7 @@ Commands:
         bot.send_message(chat_id, "📸 Please send me a photo of your plant for analysis.")
 
 def handle_plant_analysis(message):
-    """Analyze plant photo using OpenAI"""
+    """Analyze plant photo using Google Gemini"""
     chat_id = message.chat.id
     
     try:
@@ -96,11 +96,11 @@ def handle_plant_analysis(message):
         photo_file.download(out=photo_bytes)
         photo_bytes.seek(0)
         
-        # Convert to base64 for OpenAI
-        image_base64 = base64.b64encode(photo_bytes.getvalue()).decode('utf-8')
+        # Open as PIL Image
+        img = Image.open(photo_bytes)
         
-        # Analyze with OpenAI
-        analysis = analyze_plant_with_openai(image_base64)
+        # Analyze with Gemini
+        analysis = analyze_plant_with_gemini(img)
         
         # Delete processing message
         bot.delete_message(chat_id, processing_msg.message_id)
@@ -110,10 +110,10 @@ def handle_plant_analysis(message):
         
     except Exception as e:
         logger.error(f"Error analyzing plant: {e}")
-        bot.send_message(chat_id, "❌ Sorry, I couldn't analyze the image. Please try again.")
+        bot.send_message(chat_id, f"❌ Sorry, I couldn't analyze the image. Error: {str(e)}")
 
-def analyze_plant_with_openai(image_base64):
-    """Use OpenAI to analyze plant issues"""
+def analyze_plant_with_gemini(image):
+    """Use Google Gemini to analyze plant issues"""
     
     prompt = """
 Analyze this plant photo and provide a comprehensive diagnosis:
@@ -129,30 +129,14 @@ Be specific and practical in your advice.
 """
     
     try:
-        response = openai.ChatCompletion.create(
-            model="gpt-4-vision-preview",
-            messages=[
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": prompt},
-                        {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": f"data:image/jpeg;base64,{image_base64}"
-                            }
-                        }
-                    ]
-                }
-            ],
-            max_tokens=1000
-        )
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        response = model.generate_content([prompt, image])
         
-        return response.choices[0].message.content
+        return response.text
         
     except Exception as e:
-        logger.error(f"OpenAI API error: {e}")
-        return "I apologize, but I'm having trouble analyzing the image right now. Please try again with a clearer photo."
+        logger.error(f"Gemini API error: {e}")
+        raise Exception(f"Gemini API error: {str(e)}")
 
 def send_analysis_results(chat_id, analysis):
     """Send formatted analysis results to user"""
@@ -165,12 +149,28 @@ def send_analysis_results(chat_id, analysis):
 💡 *Remember*: This is an AI analysis. For serious plant issues, consult a local expert.
 """
     
+    # Escape markdown special characters in analysis
+    analysis_escaped = analysis.replace('*', '\\*').replace('_', '\\_').replace('[', '\\[').replace(']', '\\]')
+    formatted_response = f"""
+🌿 *Plant Analysis Results*
+
+{analysis_escaped}
+
+💡 *Remember*: This is an AI analysis. For serious plant issues, consult a local expert.
+"""
+    
     if len(formatted_response) > 4000:
         chunks = [formatted_response[i:i+4000] for i in range(0, len(formatted_response), 4000)]
         for chunk in chunks:
-            bot.send_message(chat_id, chunk, parse_mode='Markdown')
+            try:
+                bot.send_message(chat_id, chunk, parse_mode='Markdown')
+            except:
+                bot.send_message(chat_id, chunk)  # Send without markdown if it fails
     else:
-        bot.send_message(chat_id, formatted_response, parse_mode='Markdown')
+        try:
+            bot.send_message(chat_id, formatted_response, parse_mode='Markdown')
+        except:
+            bot.send_message(chat_id, formatted_response)  # Send without markdown if it fails
 
 def handle_callback(callback_query):
     """Handle callback queries"""
