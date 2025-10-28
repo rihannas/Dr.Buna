@@ -199,6 +199,19 @@ def health_check():
 def home():
     return "🌿 Plant Doctor Bot is running!"
 
+@app.route('/test-gemini')
+def test_gemini():
+    """Test Gemini API connection"""
+    try:
+        if not GEMINI_API_KEY:
+            return "❌ GEMINI_API_KEY not set"
+        
+        model = genai.GenerativeModel('gemini-pro')
+        response = model.generate_content("Say 'Hello World'")
+        return f"✅ Gemini API working! Response: {response.text}"
+    except Exception as e:
+        return f"❌ Gemini API error: {str(e)}"
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
