@@ -134,7 +134,7 @@ Be specific and practical in your advice. If you cannot identify the plant or is
     
     try:
         # Use correct model names
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel('gemini-2.5-flash')
         response = model.generate_content([prompt, image])
         
         if not response.text:
@@ -221,7 +221,7 @@ def test_gemini():
         if not GEMINI_API_KEY:
             return "❌ GEMINI_API_KEY not set"
         
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel('gemini-2.5-flash')
         response = model.generate_content("Say 'Hello World'")
         return f"✅ Gemini API working! Response: {response.text}"
     except Exception as e:
