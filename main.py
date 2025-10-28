@@ -115,8 +115,12 @@ def handle_plant_analysis(message):
 def analyze_plant_with_gemini(image):
     """Use Google Gemini to analyze plant issues"""
     
+    # Check if API key is set
+    if not GEMINI_API_KEY:
+        raise Exception("Gemini API key not configured")
+    
     prompt = """
-Analyze this plant photo and provide a comprehensive diagnosis:
+You are a plant doctor. Analyze this plant photo and provide a comprehensive diagnosis.
 
 Please provide:
 1. **Likely Issue**: What problem the plant might have
@@ -125,18 +129,29 @@ Please provide:
 4. **Treatment**: Step-by-step solutions
 5. **Prevention**: How to avoid recurrence
 
-Be specific and practical in your advice.
+Be specific and practical in your advice. If you cannot identify the plant or issue, please say so.
 """
     
     try:
-        model = genai.GenerativeModel('gemini-2.5-flash')
+        # Use correct model names
+        model = genai.GenerativeModel('gemini-1.5-flash')
         response = model.generate_content([prompt, image])
         
+        if not response.text:
+            raise Exception("Gemini returned empty response")
+            
         return response.text
         
     except Exception as e:
         logger.error(f"Gemini API error: {e}")
-        raise Exception(f"Gemini API error: {str(e)}")
+        if "API_KEY_INVALID" in str(e):
+            raise Exception("Invalid Gemini API key. Please check your API key configuration.")
+        elif "quota" in str(e).lower():
+            raise Exception("API quota exceeded. Please check your Google AI Studio account.")
+        elif "not found" in str(e).lower():
+            raise Exception("Model not found. Please check the model name.")
+        else:
+            raise Exception(f"Gemini API error: {str(e)}")
 
 def send_analysis_results(chat_id, analysis):
     """Send formatted analysis results to user"""
@@ -206,7 +221,7 @@ def test_gemini():
         if not GEMINI_API_KEY:
             return "❌ GEMINI_API_KEY not set"
         
-        model = genai.GenerativeModel('gemini-pro')
+        model = genai.GenerativeModel('gemini-1.5-flash')
         response = model.generate_content("Say 'Hello World'")
         return f"✅ Gemini API working! Response: {response.text}"
     except Exception as e:
