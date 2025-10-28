@@ -156,12 +156,13 @@ Be specific and practical in your advice. If you cannot identify the plant or is
 def send_analysis_results(chat_id, analysis):
     """Send formatted analysis results to user"""
     
+    # Remove the "consult local expert" line and just show the analysis
     formatted_response = f"""
 🌿 *Plant Analysis Results*
 
 {analysis}
 
-💡 *Remember*: This is an AI analysis. For serious plant issues, consult a local expert.
+🌱 *Need more help? Send another photo!*
 """
     
     # Escape markdown special characters in analysis
@@ -171,7 +172,7 @@ def send_analysis_results(chat_id, analysis):
 
 {analysis_escaped}
 
-💡 *Remember*: This is an AI analysis. For serious plant issues, consult a local expert.
+🌱 *Need more help? Send another photo!*
 """
     
     if len(formatted_response) > 4000:
