@@ -30,7 +30,6 @@ def webhook():
     if request.method == 'POST':
         update = Update.de_json(request.get_json(), bot)
         
-        # Handle different types of updates
         if update.message:
             handle_message(update.message)
         elif update.callback_query:
@@ -43,7 +42,6 @@ def handle_message(message):
     chat_id = message.chat.id
     
     try:
-        # Check if message contains photo
         if message.photo:
             handle_plant_analysis(message)
         elif message.text:
@@ -60,24 +58,7 @@ def handle_text_message(message):
     if text.startswith('/'):
         handle_commands(message)
     else:
-        # Handle regular text messages
-        welcome_text = """
-🌿 *Plant Doctor Bot*
-
-I can help you identify plant issues from photos! Here's how:
-
-1. 📸 Take a clear photo of your plant's issue
-2. 🖼️ Send the photo to me
-3. 🔍 I'll analyze it using AI
-4. 💡 Get diagnosis and treatment advice
-
-*Available commands:*
-/start - Show this welcome message
-/help - Get help instructions
-/analyze - Analyze a plant photo
-
-Just send me a photo of your plant to get started!
-        """
+        welcome_text = "🌿 Plant Doctor Bot - Send me a plant photo for analysis!"
         bot.send_message(chat_id, welcome_text, parse_mode='Markdown')
 
 def handle_commands(message):
@@ -87,23 +68,14 @@ def handle_commands(message):
     
     if text == '/start' or text == '/help':
         welcome_text = """
-🌱 *Welcome to Plant Doctor!*
+🌱 *Plant Doctor Bot*
 
-I'm here to help diagnose your plant problems using AI.
+Send me a photo of your plant for AI analysis!
 
-*How to use:*
-1. Take a clear photo of the affected plant part
-2. Make sure the issue is visible (leaves, stems, etc.)
-3. Send the photo directly to this chat
-4. I'll analyze and provide recommendations
-
-*Tips for better analysis:*
-• Good lighting is important
-• Focus on the affected areas
-• Include both healthy and unhealthy parts if possible
-
-Send me a plant photo now to get started! 📸
-        """
+Commands:
+/start - Show this message
+/analyze - Analyze a plant photo
+"""
         bot.send_message(chat_id, welcome_text, parse_mode='Markdown')
     
     elif text == '/analyze':
@@ -114,7 +86,6 @@ def handle_plant_analysis(message):
     chat_id = message.chat.id
     
     try:
-        # Send processing message
         processing_msg = bot.send_message(chat_id, "🔍 Analyzing your plant photo...")
         
         # Get the highest quality photo
@@ -139,7 +110,7 @@ def handle_plant_analysis(message):
         
     except Exception as e:
         logger.error(f"Error analyzing plant: {e}")
-        bot.send_message(chat_id, "❌ Sorry, I couldn't analyze the image. Please try again with a clearer photo.")
+        bot.send_message(chat_id, "❌ Sorry, I couldn't analyze the image. Please try again.")
 
 def analyze_plant_with_openai(image_base64):
     """Use OpenAI to analyze plant issues"""
@@ -154,7 +125,7 @@ Please provide:
 4. **Treatment**: Step-by-step solutions
 5. **Prevention**: How to avoid recurrence
 
-Be specific and practical in your advice. If the image is unclear or doesn't show a plant, please indicate that.
+Be specific and practical in your advice.
 """
     
     try:
@@ -181,25 +152,20 @@ Be specific and practical in your advice. If the image is unclear or doesn't sho
         
     except Exception as e:
         logger.error(f"OpenAI API error: {e}")
-        return "I apologize, but I'm having trouble analyzing the image right now. Please try again with a clearer photo or contact a local gardening expert for immediate assistance."
+        return "I apologize, but I'm having trouble analyzing the image right now. Please try again with a clearer photo."
 
 def send_analysis_results(chat_id, analysis):
     """Send formatted analysis results to user"""
     
-    # Format the response for better readability
     formatted_response = f"""
 🌿 *Plant Analysis Results*
 
 {analysis}
 
-💡 *Remember*: This is an AI analysis. For serious plant issues, consider consulting a local gardening expert or agricultural extension service.
-
-Send another photo if you have more plants to analyze!
+💡 *Remember*: This is an AI analysis. For serious plant issues, consult a local expert.
 """
     
-    # Split long messages if needed (Telegram has 4096 character limit)
     if len(formatted_response) > 4000:
-        # Split into chunks
         chunks = [formatted_response[i:i+4000] for i in range(0, len(formatted_response), 4000)]
         for chunk in chunks:
             bot.send_message(chat_id, chunk, parse_mode='Markdown')
@@ -207,17 +173,15 @@ Send another photo if you have more plants to analyze!
         bot.send_message(chat_id, formatted_response, parse_mode='Markdown')
 
 def handle_callback(callback_query):
-    """Handle callback queries from inline keyboards"""
+    """Handle callback queries"""
     chat_id = callback_query.message.chat.id
-    query_data = callback_query.data
-    
     bot.answer_callback_query(callback_query.id)
     bot.send_message(chat_id, "Feature coming soon!")
 
 @app.route('/set_webhook', methods=['GET'])
 def set_webhook():
     """Set webhook URL for Telegram"""
-    webhook_url = os.getenv('WEBHOOK_URL')  # Your public URL
+    webhook_url = os.getenv('WEBHOOK_URL')
     if not webhook_url:
         return "WEBHOOK_URL environment variable not set", 400
     
@@ -229,40 +193,12 @@ def set_webhook():
 
 @app.route('/health', methods=['GET'])
 def health_check():
-    """Health check endpoint"""
-    return jsonify({'status': 'healthy', 'service': 'plant-doctor-bot'})
+    return jsonify({'status': 'healthy'})
 
 @app.route('/')
 def home():
-    """Home page"""
-    return """
-    <html>
-        <head>
-            <title>Plant Doctor Bot</title>
-            <style>
-                body { font-family: Arial, sans-serif; margin: 40px; }
-                .container { max-width: 800px; margin: 0 auto; }
-                .status { color: green; font-weight: bold; }
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <h1>🌿 Plant Doctor Bot</h1>
-                <p>This bot helps diagnose plant issues using AI image analysis.</p>
-                <p class="status">✅ Service is running</p>
-                <p><strong>How it works:</strong></p>
-                <ol>
-                    <li>Users send photos of their plants</li>
-                    <li>AI analyzes the image for issues</li>
-                    <li>Bot provides diagnosis and treatment advice</li>
-                </ol>
-                <p><a href="https://t.me/YourBotUsername">Start using the bot</a></p>
-            </div>
-        </body>
-    </html>
-    """
+    return "🌿 Plant Doctor Bot is running!"
 
 if __name__ == '__main__':
-    # For development
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
